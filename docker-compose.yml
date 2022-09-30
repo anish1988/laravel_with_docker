@@ -1,0 +1,86 @@
+version: '3.4'
+
+services:
+  mysql:
+    image: mysql:5.7.22
+    container_name: plunder_mysql
+    environment:
+      - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD:-nopassword}
+      - MYSQL_DATABASE=plunder
+      - MYSQL_USER=root
+      - MYSQL_PASSWORD=${MYSQL_PASSWORD:-nopassword}
+    ports:
+      - 43060:3306
+    volumes:
+      - mysql-data:/var/lib/mysql:rw,delegated
+
+  php:
+    build:
+      context: .
+      target: php
+    image: spherewms/plunder_php
+    container_name: plunder_php
+    env_file:
+      # docker related stuff: xdebug, opcache
+      - web/.docker.env
+      - web/.env
+    environment:
+      # application related stuff
+      - DB_HOST=mysql
+      - DB_DATABASE=plunder
+      - DB_USERNAME=root
+      - DB_PASSWORD=${MYSQL_PASSWORD:-nopassword}
+      - DB_CONNECTION=mysql
+      - APP_ENV=local
+      - APP_KEY=base64:UyMhX4x6e8Pb3e5dsUYhMH9y334u64pPTcSqJzqF/gQ=
+      - LOG_CHANNEL=stderr
+      - APP_DEBUG=true
+      - APP_URL=http://localhost:9080/
+      - APP_NAME=Plunder
+      - L5_SWAGGER_GENERATE_ALWAYS=true
+      - L5_SWAGGER_BASE_PATH=http://127.0.0.1:9080/api/documentation
+    depends_on:
+      - mysql
+    volumes:
+      - ./web:/var/www/html/
+      - storage:/var/www/html/storage
+
+  nginx:
+    image: spherewms/plunder_nginx
+    container_name: plunder_nginx
+    build:
+      context: .
+      target: nginx
+      args:
+        UPSTREAM: php
+    ports:
+      - 9080:80
+    depends_on:
+      - php
+    volumes:
+      - ./web/public:/var/www/html/public
+  phpmyadmin:
+    depends_on:
+      - mysql
+    image: phpmyadmin/phpmyadmin
+    environment:
+      - PHA_HOST=mysql
+      - PHA_PORT=3306
+    ports:
+      - 8001:80
+
+
+
+  vendor:
+    container_name: plunder_vendor
+    build:
+      context: .
+      target: vendor
+    volumes:
+      - ./web/composer.json:/app/composer.json
+      - ./web/composer.lock:/app/composer.lock
+      - ./web/vendor:/app/vendor
+
+volumes:
+  mysql-data:
+  storage:
