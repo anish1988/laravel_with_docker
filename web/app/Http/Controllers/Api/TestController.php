@@ -7,7 +7,7 @@ use Illuminate\Http\Request;
 
 class TestController extends Controller
 {
-    //
+    // this is for swagger Part
       /**
     * @OA\Get(
         *     path="/",
